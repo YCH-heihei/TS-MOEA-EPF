@@ -1,0 +1,84 @@
+% the sampled points 3-objective ZCAT  as follow:
+% 适用于1-4，7-9
+x=0:1/(10):1;
+% x=0:1/(150):1;
+[X,Y]=meshgrid(x);
+% opt=gpuArray(PF1OfZCAT([X(:),Y(:)]));
+%% 生成4万个点，接着反复删除与其它个体拥挤距离最小的解。
+PFName='PF1OfZCAT';
+%% 生成4万个点，接着反复删除与其它个体拥挤距离最小的解。
+% opt=eval(strcat(PFName,'([X(:),Y(:)],3)'));
+opt=eval(strcat(PFName,'([X(:),Y(:)])'));
+zMin=min(opt,[],1);
+zMax=min(opt,[],1);
+rang=zMax-zMin;
+problemsName='ZCAT1';
+numOfPoints=size(opt,1);
+M=size(opt,2);
+normOfOpt=(opt-zMin)./(zMax-zMin);
+dis=squareform(pdist(normOfOpt));
+dis(logical(eye(size(opt,1))))=M;
+[minDis,minIndex]=min(dis,[],2);
+
+for i=1:40000
+   % 随机生成一个新的点，将其加入到dis中，接着计算新的拥挤距离。
+%     newPoint=eval(strcat(PFName,'([rand(1),rand(1)],3)'));
+   newPoint=eval(strcat(PFName,'([rand(1),rand(1)])'));
+   normOfOp
+   disOfNewPoints=pdist2(newPoint,opt);
+   [minDisOfNewPoints,minIndexOfNewPoints]=min(disOfNewPoints);
+   [minDisOfOpt,minIndexOfOpt]=min(minDis);
+   if(minDisOfNewPoints>minDisOfOpt)
+
+      % 找到minDisOfNewPoints中的第二近节点，比较二者谁更小一些。
+      p=minIndexOfOpt;
+      q=minIndex(minIndexOfOpt);
+      crow1=min(dis(p,[1:q-1,q+1:end]));
+      crow2=min(dis(p,[1:p-1,p+1:end]));
+      if(crow1>crow2)
+          minIndexOfOpt=q;
+      else
+         minIndexOfOpt=p;
+      end
+      opt(minIndexOfOpt,:)=newPoint;
+%       try
+      dis(minIndexOfOpt,[1:minIndexOfOpt-1,minIndexOfOpt+1:end])=disOfNewPoints([1:minIndexOfOpt-1,minIndexOfOpt+1:end]);
+%       catch
+      temp=0;
+%       end
+      dis(minIndexOfOpt,minIndexOfOpt)=M;
+      dis(:,minIndexOfOpt)=dis(minIndexOfOpt,:);
+%       disOfNewPoints(minIndexOfOpt)=M;
+%       minIndexOfNewPoints=minIndexOfNewPoints+(minIndexOfNewPoints>minIndexOfOpt);
+      if(minIndexOfNewPoints==minIndexOfOpt)
+          [tempMinDis,tempIndex]=min(dis(minIndexOfOpt,:));
+          minDis(minIndexOfOpt)=tempMinDis;
+          minIndex(minIndexOfOpt)=tempIndex;
+      else
+          minDis(minIndexOfOpt)=minDisOfNewPoints;
+          minIndex(minIndexOfOpt)=minIndexOfNewPoints;
+      end
+      
+      % 找到minIndex为minIndexOfopt的个体
+      needUpdatedIndex=minIndex==minIndexOfOpt;
+      [newMinDisOfNeeUpdated,newTempIndexOfNeeUpdated]=min(dis(needUpdatedIndex,:),[],2); 
+      minDis(needUpdatedIndex)=newMinDisOfNeeUpdated;
+      minIndex(needUpdatedIndex)=newTempIndexOfNeeUpdated;
+      
+      % 更新minDis
+      needUpdatedIndex=(minDis>dis(minIndexOfOpt,:)');
+      
+%       [newMinDisOfNeeUpdated,newTempIndexOfNeeUpdated]=min(dis(needUpdatedIndex,:),minDis()); 
+      minDis(needUpdatedIndex)=dis(needUpdatedIndex,minIndexOfOpt);
+      minIndex(needUpdatedIndex)=minIndexOfOpt;
+      
+      
+   end
+end
+%% 将之保存到对应文件夹下。
+folder = fullfile('.\Problems\Multi-objective optimization\ZCAT',problemsName);
+[~,~]  = mkdir(folder);
+% folder=folder(1:end-1);
+file   = fullfile(folder,sprintf('%s_M%d_Num%d',problemsName,M,numOfPoints));
+save([file,'.mat'],'opt');
+temp=0;
